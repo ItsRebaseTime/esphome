@@ -84,6 +84,14 @@ void MPU6886Component::setup() {
     this->mark_failed();
     return;
   }
+
+#if defined(USE_MPU6886_AHRS_MADGWICK) && defined(USE_ARDUINO)
+  if (this->ahrs_enabled_ && this->ahrs_mode_ == AHRS_MODE_MADGWICK) {
+    const uint32_t update_interval = this->get_update_interval();
+    const float sample_frequency = update_interval == 0 ? 1000.0f : 1000.0f / static_cast<float>(update_interval);
+    this->madgwick_.begin(sample_frequency);
+  }
+#endif
 }
 
 void MPU6886Component::dump_config() {
@@ -100,6 +108,17 @@ void MPU6886Component::dump_config() {
   LOG_SENSOR("  ", "Gyro Y", this->gyro_y_sensor_);
   LOG_SENSOR("  ", "Gyro Z", this->gyro_z_sensor_);
   LOG_SENSOR("  ", "Temperature", this->temperature_sensor_);
+  LOG_SENSOR("  ", "Yaw", this->yaw_sensor_);
+  LOG_SENSOR("  ", "Pitch", this->pitch_sensor_);
+  LOG_SENSOR("  ", "Roll", this->roll_sensor_);
+
+  if (this->ahrs_enabled_) {
+    if (this->ahrs_mode_ == AHRS_MODE_MADGWICK) {
+      ESP_LOGCONFIG(TAG, "  AHRS: Madgwick");
+    }
+  } else {
+    ESP_LOGCONFIG(TAG, "  AHRS: None");
+  }
 }
 
 void MPU6886Component::update() {
@@ -142,6 +161,25 @@ void MPU6886Component::update() {
     this->gyro_y_sensor_->publish_state(gyro_y);
   if (this->gyro_z_sensor_ != nullptr)
     this->gyro_z_sensor_->publish_state(gyro_z);
+
+#if defined(USE_MPU6886_AHRS_MADGWICK) && defined(USE_ARDUINO)
+  if (this->ahrs_enabled_ && this->ahrs_mode_ == AHRS_MODE_MADGWICK) {
+    this->madgwick_.updateIMU(gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z);
+
+    const float yaw = this->madgwick_.getYaw();
+    const float pitch = this->madgwick_.getPitch();
+    const float roll = this->madgwick_.getRoll();
+
+    ESP_LOGV(TAG, "AHRS={yaw=%.3f°, pitch=%.3f°, roll=%.3f°}", yaw, pitch, roll);
+
+    if (this->yaw_sensor_ != nullptr)
+      this->yaw_sensor_->publish_state(yaw);
+    if (this->pitch_sensor_ != nullptr)
+      this->pitch_sensor_->publish_state(pitch);
+    if (this->roll_sensor_ != nullptr)
+      this->roll_sensor_->publish_state(roll);
+  }
+#endif
 
   this->status_clear_warning();
 }
