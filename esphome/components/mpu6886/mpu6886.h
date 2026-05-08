@@ -23,6 +23,9 @@ class MPU6886Component : public PollingComponent, public i2c::I2CDevice {
   void set_gyro_z_sensor(sensor::Sensor *gyro_z_sensor) { gyro_z_sensor_ = gyro_z_sensor; }
 
  protected:
+  bool initialize_();
+
+  bool initialized_{false};
   sensor::Sensor *accel_x_sensor_{nullptr};
   sensor::Sensor *accel_y_sensor_{nullptr};
   sensor::Sensor *accel_z_sensor_{nullptr};
