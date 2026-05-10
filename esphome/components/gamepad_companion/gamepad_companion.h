@@ -122,8 +122,12 @@ class GamepadCompanion : public Component, public uart::UARTDevice {
   void configure_supported_fields_();
   void update_input_state_();
   uint8_t get_battery_level_() const;
+  uint8_t crc8_update(uint8_t crc, uint8_t byte);
   void send_cap_response_();
   void send_input_update_(bool all);
+  void send_frame(uint8_t msg_type, const uint8_t *payload, uint16_t len);
+  bool try_parse_frame();
+  void dispatch_frame(uint8_t msg_type, const uint8_t *payload, uint16_t len);
   void handle_output_update_(const uint8_t *payload, uint16_t len);
   void publish_output_(uint8_t field, uint8_t value);
   void publish_lightbar_();

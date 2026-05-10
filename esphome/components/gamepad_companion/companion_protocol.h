@@ -85,7 +85,7 @@ static constexpr uint8_t OUT_LEFT_ZONE_BASE = 13;
 static constexpr uint8_t OUT_RIGHT_ZONE_BASE = 23;
 static constexpr uint8_t OUTPUT_FIELD_COUNT = 33;
 static constexpr uint8_t OUTPUT_MASK_BYTES = 5;
-static constexpr uint8_t MAX_FRAME_SIZE = 512;
+static constexpr uint16_t MAX_FRAME_SIZE = 512;
 }  // namespace cproto
 
 }  // namespace gamepad_companion
