@@ -5,6 +5,8 @@
 #include "esphome/components/light/light_state.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/switch/switch.h"
+#include "esphome/components/uart/uart.h"
+#include "companion_link.h"
 #include <BleCompositeHID.h>
 #include <memory>
 #include <string>
@@ -138,6 +140,7 @@ class Gamepad : public PollingComponent {
   void set_trigger_max(int16_t max) { m_trigger_max = max; }
   void set_timing_info(bool enable) { m_timing_info = enable; }
   void set_timing_info_switch(switch_::Switch *sw) { this->m_timing_info_switch = sw; }
+  void set_companion_uart(uart::UARTComponent *uart) { this->m_companion_ = new GamepadCompanionLink(uart); }
   void handle_feedback(DualsenseGamepadOutputReportData data);
   void start();
   void stop();
@@ -252,6 +255,7 @@ class Gamepad : public PollingComponent {
   int16_t m_ay{0};
   int16_t m_az{0};
   bool m_timing_info{false};
+  GamepadCompanionLink *m_companion_{nullptr};
 
  private:
   void handle_all_buttons();
@@ -259,23 +263,27 @@ class Gamepad : public PollingComponent {
   void update_battery_level();
   void update_charging_status();
   void update_peripheral_status();
-  int8_t update_axis(sensor::Sensor *sensor);
+  int8_t update_axis(sensor::Sensor *sensor, uint8_t companion_field);
   void update_thumbsticks();
   bool update_dpad();
   void update_all_triggers();
-  uint8_t update_trigger(sensor::Sensor *sensor);
+  uint8_t update_trigger(sensor::Sensor *sensor, uint8_t companion_field);
   void update_left_trigger();
   void update_right_trigger();
-  bool update_motion_value(sensor::Sensor *sensor, int16_t *value, float scale);
+  bool update_motion_value(sensor::Sensor *sensor, int16_t *value, float scale, uint8_t companion_field);
   void update_motion_inputs();
   void update_touchpad();
   void update_touchpad_contact(binary_sensor::BinarySensor *touch_sensor, sensor::Sensor *x_sensor,
                                sensor::Sensor *y_sensor, float x_min, float x_max, float y_min, float y_max,
-                               bool &was_active, int8_t &touch_id, uint16_t x_out_min, uint16_t x_out_max);
+                               bool &was_active, int8_t &touch_id, uint16_t x_out_min, uint16_t x_out_max,
+                               uint8_t touch_field, uint8_t x_field, uint8_t y_field);
   uint16_t scale_touchpad_axis(sensor::Sensor *sensor, float input_min, float input_max, uint16_t output_min,
                                uint16_t output_max);
   uint16_t scale_touchpad_raw(float value, float input_min, float input_max, uint16_t output_min, uint16_t output_max);
-  void handle_button(binary_sensor::BinarySensor *button, uint32_t input_button);
+  void handle_button(binary_sensor::BinarySensor *button, uint32_t input_button, uint8_t companion_field = 0xFF);
+  bool companion_binary(uint8_t field) const;
+  float companion_float(uint8_t field) const;
+  void send_companion_output(const DualsenseGamepadOutputReportData &data);
 
   std::string m_name;
   std::string m_manufacturer_id;

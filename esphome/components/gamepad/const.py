@@ -52,6 +52,7 @@ CONF_TRIGGER_MIN: Final = "trigger_min"
 CONF_TRIGGER_MAX: Final = "trigger_max"
 
 CONF_GAMEPAD_ID: Final = "gamepad_id"
+CONF_COMPANION_UART: Final = "companion_uart"
 
 # Switch configuration constants
 CONF_CHANNEL: Final = "channel"

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Final
 
 import esphome.codegen as cg
-from esphome.components import binary_sensor, light, sensor
+from esphome.components import binary_sensor, light, sensor, uart
 
 # from esphome.components.esp32 import VARIANT_ESP32, get_esp32_variant
 import esphome.config_validation as cv
@@ -22,6 +22,7 @@ from .const import (
     CONF_B_BUTTON,
     CONF_BATTERY_LEVEL_SENSOR,
     CONF_CHARGING_STATUS_SENSOR,
+    CONF_COMPANION_UART,
     CONF_DPAD_DOWN_BUTTON,
     CONF_DPAD_LEFT_BUTTON,
     CONF_DPAD_RIGHT_BUTTON,
@@ -79,6 +80,7 @@ from .const import (
 
 CODEOWNERS: Final = ["@ItsRebaseTime"]
 AUTO_LOAD: Final = ["binary_sensor", "sensor", "number", "button", "light", "switch"]
+DEPENDENCIES: Final = ["uart"]
 
 gamepad_ns = cg.esphome_ns.namespace(DOMAIN)
 
@@ -224,6 +226,7 @@ CONFIG_SCHEMA: Final = cv.All(
             ),
             cv.Optional(CONF_LEFT_TOUCHPAD): TOUCHPAD_SCHEMA,
             cv.Optional(CONF_RIGHT_TOUCHPAD): TOUCHPAD_SCHEMA,
+            cv.Optional(CONF_COMPANION_UART): cv.use_id(uart.UARTComponent),
         }
     ).extend(cv.COMPONENT_SCHEMA),
     _validate_dpad,
@@ -376,6 +379,10 @@ async def to_code(config: dict) -> None:
         cg.add(
             getattr(var, f"set_{setter_prefix}_touch_y_max")(tp[CONF_TOUCHPAD_Y_MAX])
         )
+
+    if CONF_COMPANION_UART in config:
+        uart_var = await cg.get_variable(config[CONF_COMPANION_UART])
+        cg.add(var.set_companion_uart(uart_var))
 
     for lib in LIBS_ADDITIONAL:  # type: ignore
         cg.add_library(*lib)
