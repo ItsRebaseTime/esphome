@@ -390,6 +390,7 @@ async def to_code(config: dict) -> None:
             touch_s = await cg.get_variable(tp[CONF_TOUCHPAD_SENSOR])
             cg.add(getattr(var, f"set_{setter_prefix}_touch_sensor")(touch_s))
         if CONF_TOUCHPAD_TOUCHSCREEN in tp:
+            cg.add_define("GAMEPAD_USE_TOUCHSCREEN")
             ts = await cg.get_variable(tp[CONF_TOUCHPAD_TOUCHSCREEN])
             cg.add(getattr(var, f"set_{setter_prefix}_touchscreen")(ts))
         if CONF_TOUCHPAD_X_SENSOR in tp:

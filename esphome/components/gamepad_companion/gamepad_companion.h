@@ -3,7 +3,9 @@
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "esphome/components/light/light_state.h"
 #include "esphome/components/sensor/sensor.h"
+#ifdef GAMEPAD_USE_TOUCHSCREEN
 #include "esphome/components/touchscreen/touchscreen.h"
+#endif
 #include "esphome/components/uart/uart.h"
 #include "esphome/core/component.h"
 #include "esphome/core/log.h"
@@ -43,9 +45,13 @@ class GamepadCompanion : public Component, public uart::UARTDevice {
   void set_dpad_down_button(binary_sensor::BinarySensor *button) { this->m_dpad_down_button = button; }
   void set_dpad_left_button(binary_sensor::BinarySensor *button) { this->m_dpad_left_button = button; }
   void set_left_touch_sensor(binary_sensor::BinarySensor *sensor) { this->m_left_touch_sensor = sensor; }
+#ifdef GAMEPAD_USE_TOUCHSCREEN
   void set_left_touchscreen(touchscreen::Touchscreen *ts) { this->m_left_touchscreen_ = ts; }
+#endif
   void set_right_touch_sensor(binary_sensor::BinarySensor *sensor) { this->m_right_touch_sensor = sensor; }
+#ifdef GAMEPAD_USE_TOUCHSCREEN
   void set_right_touchscreen(touchscreen::Touchscreen *ts) { this->m_right_touchscreen_ = ts; }
+#endif
 
   void set_battery_level_sensor(sensor::Sensor *sensor) { this->m_battery_level_sensor = sensor; }
   void set_left_thumb_x_sensor(sensor::Sensor *sensor) { this->m_left_thumb_x_sensor = sensor; }
@@ -147,9 +153,13 @@ class GamepadCompanion : public Component, public uart::UARTDevice {
   binary_sensor::BinarySensor *m_dpad_down_button{nullptr};
   binary_sensor::BinarySensor *m_dpad_left_button{nullptr};
   binary_sensor::BinarySensor *m_left_touch_sensor{nullptr};
+#ifdef GAMEPAD_USE_TOUCHSCREEN
   touchscreen::Touchscreen *m_left_touchscreen_{nullptr};
+#endif
   binary_sensor::BinarySensor *m_right_touch_sensor{nullptr};
+#ifdef GAMEPAD_USE_TOUCHSCREEN
   touchscreen::Touchscreen *m_right_touchscreen_{nullptr};
+#endif
 
   sensor::Sensor *m_battery_level_sensor{nullptr};
   sensor::Sensor *m_left_thumb_x_sensor{nullptr};

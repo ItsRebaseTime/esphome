@@ -161,10 +161,18 @@ void GamepadCompanion::configure_supported_fields_() {
   if (this->m_dpad_left_button) {
     this->supported_inputs_ |= 1ULL << cproto::IN_DPAD_LEFT;
   }
-  if (this->m_left_touch_sensor || this->m_left_touchscreen_) {
+  if (this->m_left_touch_sensor
+#ifdef GAMEPAD_USE_TOUCHSCREEN
+      || this->m_left_touchscreen_
+#endif
+  ) {
     this->supported_inputs_ |= 1ULL << cproto::IN_LEFT_TOUCH;
   }
-  if (this->m_right_touch_sensor || this->m_right_touchscreen_) {
+  if (this->m_right_touch_sensor
+#ifdef GAMEPAD_USE_TOUCHSCREEN
+      || this->m_right_touchscreen_
+#endif
+  ) {
     this->supported_inputs_ |= 1ULL << cproto::IN_RIGHT_TOUCH;
   }
   if (this->m_charging_status_sensor) {
@@ -341,12 +349,18 @@ void GamepadCompanion::update_input_state_() {
   if (this->m_dpad_left_button && this->m_dpad_left_button->state) {
     this->m_binary_state_ |= 1U << cproto::IN_DPAD_LEFT;
   }
-  if ((this->m_left_touch_sensor && this->m_left_touch_sensor->state) ||
-      (this->m_left_touchscreen_ && this->m_left_touchscreen_->get_touch().has_value())) {
+  if ((this->m_left_touch_sensor && this->m_left_touch_sensor->state)
+#ifdef GAMEPAD_USE_TOUCHSCREEN
+      || (this->m_left_touchscreen_ && this->m_left_touchscreen_->get_touch().has_value())
+#endif
+  ) {
     this->m_binary_state_ |= 1U << cproto::IN_LEFT_TOUCH;
   }
-  if ((this->m_right_touch_sensor && this->m_right_touch_sensor->state) ||
-      (this->m_right_touchscreen_ && this->m_right_touchscreen_->get_touch().has_value())) {
+  if ((this->m_right_touch_sensor && this->m_right_touch_sensor->state)
+#ifdef GAMEPAD_USE_TOUCHSCREEN
+      || (this->m_right_touchscreen_ && this->m_right_touchscreen_->get_touch().has_value())
+#endif
+  ) {
     this->m_binary_state_ |= 1U << cproto::IN_RIGHT_TOUCH;
   }
   if (this->m_charging_status_sensor && this->m_charging_status_sensor->state) {
@@ -402,13 +416,16 @@ void GamepadCompanion::update_input_state_() {
   if (this->m_az_sensor) {
     this->m_analog_state_[cproto::IN_AZ - cproto::ANALOG_OFFSET] = this->m_az_sensor->state;
   }
+#ifdef GAMEPAD_USE_TOUCHSCREEN
   if (this->m_left_touchscreen_) {
     auto tp = this->m_left_touchscreen_->get_touch();
     if (tp.has_value()) {
       this->m_analog_state_[cproto::IN_LEFT_TOUCH_X - cproto::ANALOG_OFFSET] = static_cast<float>(tp->x);
       this->m_analog_state_[cproto::IN_LEFT_TOUCH_Y - cproto::ANALOG_OFFSET] = static_cast<float>(tp->y);
     }
-  } else {
+  } else
+#endif
+  {
     if (this->m_left_touch_x_sensor) {
       this->m_analog_state_[cproto::IN_LEFT_TOUCH_X - cproto::ANALOG_OFFSET] = this->m_left_touch_x_sensor->state;
     }
@@ -416,13 +433,16 @@ void GamepadCompanion::update_input_state_() {
       this->m_analog_state_[cproto::IN_LEFT_TOUCH_Y - cproto::ANALOG_OFFSET] = this->m_left_touch_y_sensor->state;
     }
   }
+#ifdef GAMEPAD_USE_TOUCHSCREEN
   if (this->m_right_touchscreen_) {
     auto tp = this->m_right_touchscreen_->get_touch();
     if (tp.has_value()) {
       this->m_analog_state_[cproto::IN_RIGHT_TOUCH_X - cproto::ANALOG_OFFSET] = static_cast<float>(tp->x);
       this->m_analog_state_[cproto::IN_RIGHT_TOUCH_Y - cproto::ANALOG_OFFSET] = static_cast<float>(tp->y);
     }
-  } else {
+  } else
+#endif
+  {
     if (this->m_right_touch_x_sensor) {
       this->m_analog_state_[cproto::IN_RIGHT_TOUCH_X - cproto::ANALOG_OFFSET] = this->m_right_touch_x_sensor->state;
     }
