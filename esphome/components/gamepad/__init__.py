@@ -34,6 +34,7 @@ from .const import (
     CONF_LB_BUTTON,
     CONF_LEFT_THUMB_X_SENSOR,
     CONF_LEFT_THUMB_Y_SENSOR,
+    CONF_LEFT_TOUCHPAD,
     CONF_LEFT_TRIGGER_BUTTON,
     CONF_LEFT_TRIGGER_SENSOR,
     CONF_LIGHTBAR_LIGHT,
@@ -49,6 +50,7 @@ from .const import (
     CONF_RB_BUTTON,
     CONF_RIGHT_THUMB_X_SENSOR,
     CONF_RIGHT_THUMB_Y_SENSOR,
+    CONF_RIGHT_TOUCHPAD,
     CONF_RIGHT_TRIGGER_BUTTON,
     CONF_RIGHT_TRIGGER_SENSOR,
     CONF_ROLL_SENSOR,
@@ -57,22 +59,14 @@ from .const import (
     CONF_START_BUTTON,
     CONF_STICK_AXIS_MAX,
     CONF_STICK_AXIS_MIN,
-    CONF_TOUCH2_SENSOR,
-    CONF_TOUCH2_X_MAX,
-    CONF_TOUCH2_X_MIN,
-    CONF_TOUCH2_X_SENSOR,
-    CONF_TOUCH2_Y_MAX,
-    CONF_TOUCH2_Y_MIN,
-    CONF_TOUCH2_Y_SENSOR,
-    CONF_TOUCH_SENSOR,
-    CONF_TOUCH_X_MAX,
-    CONF_TOUCH_X_MIN,
-    CONF_TOUCH_X_SENSOR,
-    CONF_TOUCH_Y_MAX,
-    CONF_TOUCH_Y_MIN,
-    CONF_TOUCH_Y_SENSOR,
     CONF_TOUCHPAD_BUTTON,
-    CONF_TOUCHPAD_SPLIT,
+    CONF_TOUCHPAD_SENSOR,
+    CONF_TOUCHPAD_X_MAX,
+    CONF_TOUCHPAD_X_MIN,
+    CONF_TOUCHPAD_X_SENSOR,
+    CONF_TOUCHPAD_Y_MAX,
+    CONF_TOUCHPAD_Y_MIN,
+    CONF_TOUCHPAD_Y_SENSOR,
     CONF_TRIGGER_MAX,
     CONF_TRIGGER_MIN,
     CONF_USB_PLUGGED_SENSOR,
@@ -122,34 +116,33 @@ def _validate_trigger_sources(config: dict) -> dict:
     return config
 
 
+def _validate_touchpad_block(block: dict, label: str) -> dict:
+    if block[CONF_TOUCHPAD_X_MIN] >= block[CONF_TOUCHPAD_X_MAX]:
+        raise cv.Invalid(f"{label}: x_min must be less than x_max")
+    if block[CONF_TOUCHPAD_Y_MIN] >= block[CONF_TOUCHPAD_Y_MAX]:
+        raise cv.Invalid(f"{label}: y_min must be less than y_max")
+    return block
+
+
 def _validate_touchpad(config: dict) -> dict:
-    if (
-        CONF_TOUCH_X_SENSOR in config or CONF_TOUCH_Y_SENSOR in config
-    ) and CONF_TOUCH_SENSOR not in config:
-        raise cv.Invalid(
-            "touch_sensor must be configured when touch_x_sensor or touch_y_sensor is used"
-        )
-    if (
-        CONF_TOUCH2_X_SENSOR in config or CONF_TOUCH2_Y_SENSOR in config
-    ) and CONF_TOUCH2_SENSOR not in config:
-        raise cv.Invalid(
-            "touch2_sensor must be configured when touch2_x_sensor or touch2_y_sensor is used"
-        )
-    if config[CONF_TOUCHPAD_SPLIT] and CONF_TOUCH_SENSOR not in config:
-        raise cv.Invalid(
-            "touch_sensor must be configured when touchpad_split is enabled"
-        )
-    if config[CONF_TOUCHPAD_SPLIT] and CONF_TOUCH2_SENSOR in config:
-        raise cv.Invalid("touchpad_split cannot be used together with touch2_sensor")
-    if config[CONF_TOUCH_X_MIN] >= config[CONF_TOUCH_X_MAX]:
-        raise cv.Invalid("touch_x_min must be less than touch_x_max")
-    if config[CONF_TOUCH_Y_MIN] >= config[CONF_TOUCH_Y_MAX]:
-        raise cv.Invalid("touch_y_min must be less than touch_y_max")
-    if config[CONF_TOUCH2_X_MIN] >= config[CONF_TOUCH2_X_MAX]:
-        raise cv.Invalid("touch2_x_min must be less than touch2_x_max")
-    if config[CONF_TOUCH2_Y_MIN] >= config[CONF_TOUCH2_Y_MAX]:
-        raise cv.Invalid("touch2_y_min must be less than touch2_y_max")
+    if CONF_LEFT_TOUCHPAD in config:
+        _validate_touchpad_block(config[CONF_LEFT_TOUCHPAD], "left_touchpad")
+    if CONF_RIGHT_TOUCHPAD in config:
+        _validate_touchpad_block(config[CONF_RIGHT_TOUCHPAD], "right_touchpad")
     return config
+
+
+TOUCHPAD_SCHEMA: Final = cv.Schema(
+    {
+        cv.Required(CONF_TOUCHPAD_SENSOR): cv.use_id(binary_sensor.BinarySensor),
+        cv.Optional(CONF_TOUCHPAD_X_SENSOR): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_TOUCHPAD_Y_SENSOR): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_TOUCHPAD_X_MIN, default=0.0): cv.float_,
+        cv.Optional(CONF_TOUCHPAD_X_MAX, default=1919.0): cv.float_,
+        cv.Optional(CONF_TOUCHPAD_Y_MIN, default=0.0): cv.float_,
+        cv.Optional(CONF_TOUCHPAD_Y_MAX, default=1079.0): cv.float_,
+    }
+)
 
 
 CONFIG_SCHEMA: Final = cv.All(
@@ -229,21 +222,8 @@ CONFIG_SCHEMA: Final = cv.All(
             cv.Optional(CONF_TRIGGER_MAX, default=4095): cv.int_range(
                 min=-32767, max=32767
             ),
-            cv.Optional(CONF_TOUCHPAD_SPLIT, default=False): cv.boolean,
-            cv.Optional(CONF_TOUCH_SENSOR): cv.use_id(binary_sensor.BinarySensor),
-            cv.Optional(CONF_TOUCH_X_SENSOR): cv.use_id(sensor.Sensor),
-            cv.Optional(CONF_TOUCH_Y_SENSOR): cv.use_id(sensor.Sensor),
-            cv.Optional(CONF_TOUCH_X_MIN, default=0.0): cv.float_,
-            cv.Optional(CONF_TOUCH_X_MAX, default=1919.0): cv.float_,
-            cv.Optional(CONF_TOUCH_Y_MIN, default=0.0): cv.float_,
-            cv.Optional(CONF_TOUCH_Y_MAX, default=1079.0): cv.float_,
-            cv.Optional(CONF_TOUCH2_SENSOR): cv.use_id(binary_sensor.BinarySensor),
-            cv.Optional(CONF_TOUCH2_X_SENSOR): cv.use_id(sensor.Sensor),
-            cv.Optional(CONF_TOUCH2_Y_SENSOR): cv.use_id(sensor.Sensor),
-            cv.Optional(CONF_TOUCH2_X_MIN, default=0.0): cv.float_,
-            cv.Optional(CONF_TOUCH2_X_MAX, default=1919.0): cv.float_,
-            cv.Optional(CONF_TOUCH2_Y_MIN, default=0.0): cv.float_,
-            cv.Optional(CONF_TOUCH2_Y_MAX, default=1079.0): cv.float_,
+            cv.Optional(CONF_LEFT_TOUCHPAD): TOUCHPAD_SCHEMA,
+            cv.Optional(CONF_RIGHT_TOUCHPAD): TOUCHPAD_SCHEMA,
         }
     ).extend(cv.COMPONENT_SCHEMA),
     _validate_dpad,
@@ -369,34 +349,33 @@ async def to_code(config: dict) -> None:
     cg.add(var.set_trigger_min(config[CONF_TRIGGER_MIN]))
     cg.add(var.set_trigger_max(config[CONF_TRIGGER_MAX]))
 
-    if CONF_TOUCH_SENSOR in config:
-        touch_sensor = await cg.get_variable(config[CONF_TOUCH_SENSOR])
-        cg.add(var.set_touch_sensor(touch_sensor))
-    if CONF_TOUCH_X_SENSOR in config:
-        touch_x = await cg.get_variable(config[CONF_TOUCH_X_SENSOR])
-        cg.add(var.set_touch_x_sensor(touch_x))
-    if CONF_TOUCH_Y_SENSOR in config:
-        touch_y = await cg.get_variable(config[CONF_TOUCH_Y_SENSOR])
-        cg.add(var.set_touch_y_sensor(touch_y))
-    cg.add(var.set_touch_x_min(config[CONF_TOUCH_X_MIN]))
-    cg.add(var.set_touch_x_max(config[CONF_TOUCH_X_MAX]))
-    cg.add(var.set_touch_y_min(config[CONF_TOUCH_Y_MIN]))
-    cg.add(var.set_touch_y_max(config[CONF_TOUCH_Y_MAX]))
-
-    cg.add(var.set_touchpad_split(config[CONF_TOUCHPAD_SPLIT]))
-    if CONF_TOUCH2_SENSOR in config:
-        touch2_sensor = await cg.get_variable(config[CONF_TOUCH2_SENSOR])
-        cg.add(var.set_touch2_sensor(touch2_sensor))
-    if CONF_TOUCH2_X_SENSOR in config:
-        touch2_x = await cg.get_variable(config[CONF_TOUCH2_X_SENSOR])
-        cg.add(var.set_touch2_x_sensor(touch2_x))
-    if CONF_TOUCH2_Y_SENSOR in config:
-        touch2_y = await cg.get_variable(config[CONF_TOUCH2_Y_SENSOR])
-        cg.add(var.set_touch2_y_sensor(touch2_y))
-    cg.add(var.set_touch2_x_min(config[CONF_TOUCH2_X_MIN]))
-    cg.add(var.set_touch2_x_max(config[CONF_TOUCH2_X_MAX]))
-    cg.add(var.set_touch2_y_min(config[CONF_TOUCH2_Y_MIN]))
-    cg.add(var.set_touch2_y_max(config[CONF_TOUCH2_Y_MAX]))
+    for conf_key, setter_prefix in (
+        (CONF_LEFT_TOUCHPAD, "left"),
+        (CONF_RIGHT_TOUCHPAD, "right"),
+    ):
+        if conf_key not in config:
+            continue
+        tp = config[conf_key]
+        touch_s = await cg.get_variable(tp[CONF_TOUCHPAD_SENSOR])
+        cg.add(getattr(var, f"set_{setter_prefix}_touch_sensor")(touch_s))
+        if CONF_TOUCHPAD_X_SENSOR in tp:
+            x_s = await cg.get_variable(tp[CONF_TOUCHPAD_X_SENSOR])
+            cg.add(getattr(var, f"set_{setter_prefix}_touch_x_sensor")(x_s))
+        if CONF_TOUCHPAD_Y_SENSOR in tp:
+            y_s = await cg.get_variable(tp[CONF_TOUCHPAD_Y_SENSOR])
+            cg.add(getattr(var, f"set_{setter_prefix}_touch_y_sensor")(y_s))
+        cg.add(
+            getattr(var, f"set_{setter_prefix}_touch_x_min")(tp[CONF_TOUCHPAD_X_MIN])
+        )
+        cg.add(
+            getattr(var, f"set_{setter_prefix}_touch_x_max")(tp[CONF_TOUCHPAD_X_MAX])
+        )
+        cg.add(
+            getattr(var, f"set_{setter_prefix}_touch_y_min")(tp[CONF_TOUCHPAD_Y_MIN])
+        )
+        cg.add(
+            getattr(var, f"set_{setter_prefix}_touch_y_max")(tp[CONF_TOUCHPAD_Y_MAX])
+        )
 
     for lib in LIBS_ADDITIONAL:  # type: ignore
         cg.add_library(*lib)

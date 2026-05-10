@@ -245,8 +245,8 @@ void Gamepad::update() {
 
   if (!is_connected()) {
     m_init_sent = false;
-    m_touch_was_active = false;
-    m_touch2_was_active = false;
+    m_left_touch_was_active = false;
+    m_right_touch_was_active = false;
     return;
   }
 
@@ -287,30 +287,33 @@ void Gamepad::update_all_triggers() {
   update_right_trigger();
 }
 
-uint16_t Gamepad::scale_touchpad_raw(float value, float input_min, float input_max, uint16_t output_max) {
+uint16_t Gamepad::scale_touchpad_raw(float value, float input_min, float input_max, uint16_t output_min,
+                                     uint16_t output_max) {
   const float range = input_max - input_min;
   if (range == 0.0f) {
-    return 0;
+    return output_min;
   }
-  const float scaled = (value - input_min) / range * static_cast<float>(output_max);
-  return static_cast<uint16_t>(std::clamp(static_cast<int>(std::lround(scaled)), 0, static_cast<int>(output_max)));
+  const float scaled =
+      (value - input_min) / range * static_cast<float>(output_max - output_min) + static_cast<float>(output_min);
+  return static_cast<uint16_t>(
+      std::clamp(static_cast<int>(std::lround(scaled)), static_cast<int>(output_min), static_cast<int>(output_max)));
 }
 
-uint16_t Gamepad::scale_touchpad_axis(sensor::Sensor *sensor, float input_min, float input_max, uint16_t output_max) {
+uint16_t Gamepad::scale_touchpad_axis(sensor::Sensor *sensor, float input_min, float input_max, uint16_t output_min,
+                                      uint16_t output_max) {
   if (sensor == nullptr) {
-    return 0;
+    return output_min;
   }
   const float value = sensor->state;
   if (std::isnan(value)) {
-    return 0;
+    return output_min;
   }
-  return scale_touchpad_raw(value, input_min, input_max, output_max);
+  return scale_touchpad_raw(value, input_min, input_max, output_min, output_max);
 }
 
 void Gamepad::update_touchpad_contact(binary_sensor::BinarySensor *touch_sensor, sensor::Sensor *x_sensor,
                                       sensor::Sensor *y_sensor, float x_min, float x_max, float y_min, float y_max,
-                                      bool &was_active, int8_t &touch_id) {
-  static constexpr uint16_t TOUCHPAD_X_MAX = 1919;
+                                      bool &was_active, int8_t &touch_id, uint16_t x_out_min, uint16_t x_out_max) {
   static constexpr uint16_t TOUCHPAD_Y_MAX = 1079;
 
   if (touch_sensor == nullptr) {
@@ -326,8 +329,8 @@ void Gamepad::update_touchpad_contact(binary_sensor::BinarySensor *touch_sensor,
     return;
   }
 
-  const uint16_t x = scale_touchpad_axis(x_sensor, x_min, x_max, TOUCHPAD_X_MAX);
-  const uint16_t y = scale_touchpad_axis(y_sensor, y_min, y_max, TOUCHPAD_Y_MAX);
+  const uint16_t x = scale_touchpad_axis(x_sensor, x_min, x_max, x_out_min, x_out_max);
+  const uint16_t y = scale_touchpad_axis(y_sensor, y_min, y_max, 0, TOUCHPAD_Y_MAX);
 
   if (!was_active) {
     touch_id = m_dualsense->touchpadStartTouch(x, y);
@@ -337,76 +340,36 @@ void Gamepad::update_touchpad_contact(binary_sensor::BinarySensor *touch_sensor,
   }
 }
 
-void Gamepad::update_touchpad_split() {
-  static constexpr uint16_t TOUCHPAD_X_MAX = 1919;
-  static constexpr uint16_t TOUCHPAD_Y_MAX = 1079;
-
-  if (m_touch_sensor == nullptr) {
-    return;
-  }
-
-  if (!m_touch_sensor->state) {
-    if (m_touch_was_active) {
-      m_dualsense->touchpadStopTouch(m_touch_id);
-      m_touch_id = -1;
-      m_touch_was_active = false;
-    }
-    if (m_touch2_was_active) {
-      m_dualsense->touchpadStopTouch(m_touch2_id);
-      m_touch2_id = -1;
-      m_touch2_was_active = false;
-    }
-    return;
-  }
-
-  float x_val = m_touch_x_min;
-  if (m_touch_x_sensor != nullptr && !std::isnan(m_touch_x_sensor->state)) {
-    x_val = m_touch_x_sensor->state;
-  }
-  const uint16_t y = scale_touchpad_axis(m_touch_y_sensor, m_touch_y_min, m_touch_y_max, TOUCHPAD_Y_MAX);
-  const float x_mid = (m_touch_x_min + m_touch_x_max) * 0.5f;
-
-  if (x_val >= x_mid) {
-    if (m_touch_was_active) {
-      m_dualsense->touchpadStopTouch(m_touch_id);
-      m_touch_id = -1;
-      m_touch_was_active = false;
-    }
-    const uint16_t x = scale_touchpad_raw(x_val, x_mid, m_touch_x_max, TOUCHPAD_X_MAX);
-    if (!m_touch2_was_active) {
-      m_touch2_id = m_dualsense->touchpadStartTouch(x, y);
-      m_touch2_was_active = true;
-    } else {
-      m_dualsense->touchpadUpdatePosition(x, y, m_touch2_id);
-    }
-  } else {
-    if (m_touch2_was_active) {
-      m_dualsense->touchpadStopTouch(m_touch2_id);
-      m_touch2_id = -1;
-      m_touch2_was_active = false;
-    }
-    const uint16_t x = scale_touchpad_raw(x_val, m_touch_x_min, x_mid, TOUCHPAD_X_MAX);
-    if (!m_touch_was_active) {
-      m_touch_id = m_dualsense->touchpadStartTouch(x, y);
-      m_touch_was_active = true;
-    } else {
-      m_dualsense->touchpadUpdatePosition(x, y, m_touch_id);
-    }
-  }
-}
-
 void Gamepad::update_touchpad() {
+  // When both touchpads are configured the DualSense surface is split at its midpoint:
+  //   left  → touch point 1, X mapped to [0,   959]
+  //   right → touch point 2, X mapped to [960, 1919]
+  // When only one touchpad is configured it occupies the full surface (X 0–1919).
+  static constexpr uint16_t TOUCHPAD_X_MAX = 1919;
+  static constexpr uint16_t TOUCHPAD_X_LEFT_MAX = 959;
+  static constexpr uint16_t TOUCHPAD_X_RIGHT_MIN = 960;
+
   handle_button(m_touchpad_button, DUALSENSE_BUTTON_TOUCHPAD);
 
-  if (m_touchpad_split) {
-    update_touchpad_split();
-    return;
-  }
+  const bool has_left = m_left_touch_sensor != nullptr;
+  const bool has_right = m_right_touch_sensor != nullptr;
 
-  update_touchpad_contact(m_touch_sensor, m_touch_x_sensor, m_touch_y_sensor, m_touch_x_min, m_touch_x_max,
-                          m_touch_y_min, m_touch_y_max, m_touch_was_active, m_touch_id);
-  update_touchpad_contact(m_touch2_sensor, m_touch2_x_sensor, m_touch2_y_sensor, m_touch2_x_min, m_touch2_x_max,
-                          m_touch2_y_min, m_touch2_y_max, m_touch2_was_active, m_touch2_id);
+  if (has_left && has_right) {
+    update_touchpad_contact(m_left_touch_sensor, m_left_touch_x_sensor, m_left_touch_y_sensor, m_left_touch_x_min,
+                            m_left_touch_x_max, m_left_touch_y_min, m_left_touch_y_max, m_left_touch_was_active,
+                            m_left_touch_id, 0, TOUCHPAD_X_LEFT_MAX);
+    update_touchpad_contact(m_right_touch_sensor, m_right_touch_x_sensor, m_right_touch_y_sensor, m_right_touch_x_min,
+                            m_right_touch_x_max, m_right_touch_y_min, m_right_touch_y_max, m_right_touch_was_active,
+                            m_right_touch_id, TOUCHPAD_X_RIGHT_MIN, TOUCHPAD_X_MAX);
+  } else if (has_left) {
+    update_touchpad_contact(m_left_touch_sensor, m_left_touch_x_sensor, m_left_touch_y_sensor, m_left_touch_x_min,
+                            m_left_touch_x_max, m_left_touch_y_min, m_left_touch_y_max, m_left_touch_was_active,
+                            m_left_touch_id, 0, TOUCHPAD_X_MAX);
+  } else if (has_right) {
+    update_touchpad_contact(m_right_touch_sensor, m_right_touch_x_sensor, m_right_touch_y_sensor, m_right_touch_x_min,
+                            m_right_touch_x_max, m_right_touch_y_min, m_right_touch_y_max, m_right_touch_was_active,
+                            m_right_touch_id, 0, TOUCHPAD_X_MAX);
+  }
 }
 
 void Gamepad::handle_all_buttons() {
