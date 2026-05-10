@@ -1,6 +1,7 @@
 #include "gamepad_companion.h"
 
 #include "esphome/core/log.h"
+#include <cinttypes>
 #include <cstring>
 
 namespace esphome {
@@ -715,6 +716,7 @@ void GamepadCompanion::send_input_update_(bool all) {
     payload[10] = static_cast<uint8_t>((analog_mask >> 16) & 0xFF);
     payload[11] = static_cast<uint8_t>((analog_mask >> 24) & 0xFF);
     std::memcpy(payload + 12, values, value_count);
+    ESP_LOGD(TAG, "TX input update: binary=0x%08" PRIX32 " analog_mask=0x%08" PRIX32, binary_values, analog_mask);
     this->send_frame(cproto::MSG_INPUT_UPDATE, payload, 12 + value_count);
 
     this->m_last_binary_state_ = this->m_binary_state_;
@@ -800,9 +802,11 @@ bool GamepadCompanion::try_parse_frame() {
 void GamepadCompanion::dispatch_frame(uint8_t msg_type, const uint8_t *payload, uint16_t len) {
   switch (msg_type) {
     case cproto::MSG_CAP_REQUEST:
+      ESP_LOGD(TAG, "Received CAP_REQUEST — sending capabilities");
       this->send_cap_response_();
       break;
     case cproto::MSG_STATE_REQUEST:
+      ESP_LOGI(TAG, "Link established — master connected");
       this->update_input_state_();
       this->send_input_update_(true);
       this->m_master_ready_ = true;
@@ -825,6 +829,7 @@ void GamepadCompanion::handle_output_update_(const uint8_t *payload, uint16_t le
   for (uint8_t i = 0; i < cproto::OUTPUT_MASK_BYTES; i++) {
     output_mask |= static_cast<uint64_t>(payload[i]) << (i * 8);
   }
+  ESP_LOGD(TAG, "RX output update: mask=0x%010llX", (unsigned long long) output_mask);
   uint16_t pos = cproto::OUTPUT_MASK_BYTES;
   for (uint8_t field = 0; field < cproto::OUTPUT_FIELD_COUNT; field++) {
     if (!(output_mask & (1ULL << field))) {

@@ -1,5 +1,6 @@
 #include "companion_link.h"
 #include "esphome/core/log.h"
+#include <cinttypes>
 #include <cstring>
 
 namespace esphome {
@@ -186,6 +187,7 @@ void GamepadCompanionLink::handle_input_update(const uint8_t *payload, uint16_t 
   const uint32_t analog_mask = static_cast<uint32_t>(payload[8]) | (static_cast<uint32_t>(payload[9]) << 8) |
                                (static_cast<uint32_t>(payload[10]) << 16) | (static_cast<uint32_t>(payload[11]) << 24);
 
+  ESP_LOGD(TAG, "RX input update: binary=0x%08" PRIX32 " analog_mask=0x%08" PRIX32, binary_vals, analog_mask);
   binary_state_ = (binary_state_ & ~binary_mask) | (binary_vals & binary_mask);
 
   uint16_t pos = 12;
@@ -264,6 +266,7 @@ void GamepadCompanionLink::send_output(uint8_t rumble_weak, uint8_t rumble_stron
   std::memcpy(payload, fields_mask, cproto::OUTPUT_MASK_BYTES);
   std::memcpy(payload + cproto::OUTPUT_MASK_BYTES, values, value_count);
 
+  ESP_LOGD(TAG, "TX output update: %u field(s) changed", value_count);
   send_frame(cproto::MSG_OUTPUT_UPDATE, payload, cproto::OUTPUT_MASK_BYTES + value_count);
 
   std::memcpy(last_out_, cur, sizeof(cur));
