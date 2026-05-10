@@ -72,6 +72,7 @@ CONF_LEFT_TOUCHPAD: Final = "left_touchpad"
 CONF_RIGHT_TOUCHPAD: Final = "right_touchpad"
 # Sub-keys used inside left_touchpad / right_touchpad blocks
 CONF_TOUCHPAD_SENSOR: Final = "sensor"
+CONF_TOUCHPAD_TOUCHSCREEN: Final = "touchscreen"
 CONF_TOUCHPAD_X_SENSOR: Final = "x_sensor"
 CONF_TOUCHPAD_Y_SENSOR: Final = "y_sensor"
 CONF_TOUCHPAD_X_MIN: Final = "x_min"

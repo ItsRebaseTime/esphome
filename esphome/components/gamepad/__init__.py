@@ -5,7 +5,13 @@ from __future__ import annotations
 from typing import Final
 
 import esphome.codegen as cg
-from esphome.components import binary_sensor, light, sensor, uart
+from esphome.components import (
+    binary_sensor,
+    light,
+    sensor,
+    touchscreen as touchscreen_component,
+    uart,
+)
 
 # from esphome.components.esp32 import VARIANT_ESP32, get_esp32_variant
 import esphome.config_validation as cv
@@ -62,6 +68,7 @@ from .const import (
     CONF_STICK_AXIS_MIN,
     CONF_TOUCHPAD_BUTTON,
     CONF_TOUCHPAD_SENSOR,
+    CONF_TOUCHPAD_TOUCHSCREEN,
     CONF_TOUCHPAD_X_MAX,
     CONF_TOUCHPAD_X_MIN,
     CONF_TOUCHPAD_X_SENSOR,
@@ -134,16 +141,36 @@ def _validate_touchpad(config: dict) -> dict:
     return config
 
 
-TOUCHPAD_SCHEMA: Final = cv.Schema(
-    {
-        cv.Required(CONF_TOUCHPAD_SENSOR): cv.use_id(binary_sensor.BinarySensor),
-        cv.Optional(CONF_TOUCHPAD_X_SENSOR): cv.use_id(sensor.Sensor),
-        cv.Optional(CONF_TOUCHPAD_Y_SENSOR): cv.use_id(sensor.Sensor),
-        cv.Optional(CONF_TOUCHPAD_X_MIN, default=0.0): cv.float_,
-        cv.Optional(CONF_TOUCHPAD_X_MAX, default=1919.0): cv.float_,
-        cv.Optional(CONF_TOUCHPAD_Y_MIN, default=0.0): cv.float_,
-        cv.Optional(CONF_TOUCHPAD_Y_MAX, default=1079.0): cv.float_,
-    }
+def _validate_touchpad_source(block: dict) -> dict:
+    has_sensor = CONF_TOUCHPAD_SENSOR in block
+    has_touchscreen = CONF_TOUCHPAD_TOUCHSCREEN in block
+    if has_sensor and has_touchscreen:
+        raise cv.Invalid(
+            "Only one of 'sensor' or 'touchscreen' may be configured for a touchpad"
+        )
+    if not has_sensor and not has_touchscreen:
+        raise cv.Invalid(
+            "Either 'sensor' or 'touchscreen' must be configured for a touchpad"
+        )
+    return block
+
+
+TOUCHPAD_SCHEMA: Final = cv.All(
+    cv.Schema(
+        {
+            cv.Optional(CONF_TOUCHPAD_SENSOR): cv.use_id(binary_sensor.BinarySensor),
+            cv.Optional(CONF_TOUCHPAD_TOUCHSCREEN): cv.use_id(
+                touchscreen_component.Touchscreen
+            ),
+            cv.Optional(CONF_TOUCHPAD_X_SENSOR): cv.use_id(sensor.Sensor),
+            cv.Optional(CONF_TOUCHPAD_Y_SENSOR): cv.use_id(sensor.Sensor),
+            cv.Optional(CONF_TOUCHPAD_X_MIN, default=0.0): cv.float_,
+            cv.Optional(CONF_TOUCHPAD_X_MAX, default=1919.0): cv.float_,
+            cv.Optional(CONF_TOUCHPAD_Y_MIN, default=0.0): cv.float_,
+            cv.Optional(CONF_TOUCHPAD_Y_MAX, default=1079.0): cv.float_,
+        }
+    ),
+    _validate_touchpad_source,
 )
 
 
@@ -359,8 +386,12 @@ async def to_code(config: dict) -> None:
         if conf_key not in config:
             continue
         tp = config[conf_key]
-        touch_s = await cg.get_variable(tp[CONF_TOUCHPAD_SENSOR])
-        cg.add(getattr(var, f"set_{setter_prefix}_touch_sensor")(touch_s))
+        if CONF_TOUCHPAD_SENSOR in tp:
+            touch_s = await cg.get_variable(tp[CONF_TOUCHPAD_SENSOR])
+            cg.add(getattr(var, f"set_{setter_prefix}_touch_sensor")(touch_s))
+        if CONF_TOUCHPAD_TOUCHSCREEN in tp:
+            ts = await cg.get_variable(tp[CONF_TOUCHPAD_TOUCHSCREEN])
+            cg.add(getattr(var, f"set_{setter_prefix}_touchscreen")(ts))
         if CONF_TOUCHPAD_X_SENSOR in tp:
             x_s = await cg.get_variable(tp[CONF_TOUCHPAD_X_SENSOR])
             cg.add(getattr(var, f"set_{setter_prefix}_touch_x_sensor")(x_s))

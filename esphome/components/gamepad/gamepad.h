@@ -5,6 +5,7 @@
 #include "esphome/components/light/light_state.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/switch/switch.h"
+#include "esphome/components/touchscreen/touchscreen.h"
 #include "esphome/components/uart/uart.h"
 #include "companion_link.h"
 #include <BleCompositeHID.h>
@@ -119,6 +120,7 @@ class Gamepad : public PollingComponent {
   // Touchpad setters
   void set_touchpad_button(binary_sensor::BinarySensor *button) { m_touchpad_button = button; }
   void set_left_touch_sensor(binary_sensor::BinarySensor *s) { m_left_touch_sensor = s; }
+  void set_left_touchscreen(touchscreen::Touchscreen *ts) { m_left_touchscreen_ = ts; }
   void set_left_touch_x_sensor(sensor::Sensor *s) { m_left_touch_x_sensor = s; }
   void set_left_touch_y_sensor(sensor::Sensor *s) { m_left_touch_y_sensor = s; }
   void set_left_touch_x_min(float v) { m_left_touch_x_min = v; }
@@ -126,6 +128,7 @@ class Gamepad : public PollingComponent {
   void set_left_touch_y_min(float v) { m_left_touch_y_min = v; }
   void set_left_touch_y_max(float v) { m_left_touch_y_max = v; }
   void set_right_touch_sensor(binary_sensor::BinarySensor *s) { m_right_touch_sensor = s; }
+  void set_right_touchscreen(touchscreen::Touchscreen *ts) { m_right_touchscreen_ = ts; }
   void set_right_touch_x_sensor(sensor::Sensor *s) { m_right_touch_x_sensor = s; }
   void set_right_touch_y_sensor(sensor::Sensor *s) { m_right_touch_y_sensor = s; }
   void set_right_touch_x_min(float v) { m_right_touch_x_min = v; }
@@ -222,6 +225,7 @@ class Gamepad : public PollingComponent {
   // Touchpad members — left and right physical touchpads combined into 2 DualSense touch points
   binary_sensor::BinarySensor *m_touchpad_button{nullptr};
   binary_sensor::BinarySensor *m_left_touch_sensor{nullptr};
+  touchscreen::Touchscreen *m_left_touchscreen_{nullptr};
   sensor::Sensor *m_left_touch_x_sensor{nullptr};
   sensor::Sensor *m_left_touch_y_sensor{nullptr};
   float m_left_touch_x_min{0.0f};
@@ -231,6 +235,7 @@ class Gamepad : public PollingComponent {
   bool m_left_touch_was_active{false};
   int8_t m_left_touch_id{-1};
   binary_sensor::BinarySensor *m_right_touch_sensor{nullptr};
+  touchscreen::Touchscreen *m_right_touchscreen_{nullptr};
   sensor::Sensor *m_right_touch_x_sensor{nullptr};
   sensor::Sensor *m_right_touch_y_sensor{nullptr};
   float m_right_touch_x_min{0.0f};
@@ -273,10 +278,10 @@ class Gamepad : public PollingComponent {
   bool update_motion_value(sensor::Sensor *sensor, int16_t *value, float scale, uint8_t companion_field);
   void update_motion_inputs();
   void update_touchpad();
-  void update_touchpad_contact(binary_sensor::BinarySensor *touch_sensor, sensor::Sensor *x_sensor,
-                               sensor::Sensor *y_sensor, float x_min, float x_max, float y_min, float y_max,
-                               bool &was_active, int8_t &touch_id, uint16_t x_out_min, uint16_t x_out_max,
-                               uint8_t touch_field, uint8_t x_field, uint8_t y_field);
+  void update_touchpad_contact(binary_sensor::BinarySensor *touch_sensor, touchscreen::Touchscreen *ts,
+                               sensor::Sensor *x_sensor, sensor::Sensor *y_sensor, float x_min, float x_max,
+                               float y_min, float y_max, bool &was_active, int8_t &touch_id, uint16_t x_out_min,
+                               uint16_t x_out_max, uint8_t touch_field, uint8_t x_field, uint8_t y_field);
   uint16_t scale_touchpad_axis(sensor::Sensor *sensor, float input_min, float input_max, uint16_t output_min,
                                uint16_t output_max);
   uint16_t scale_touchpad_raw(float value, float input_min, float input_max, uint16_t output_min, uint16_t output_max);

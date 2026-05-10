@@ -48,6 +48,7 @@ from esphome.components.gamepad.const import (
     CONF_SHARE_BUTTON,
     CONF_START_BUTTON,
     CONF_TOUCHPAD_SENSOR,
+    CONF_TOUCHPAD_TOUCHSCREEN,
     CONF_TOUCHPAD_X_MAX,
     CONF_TOUCHPAD_X_MIN,
     CONF_TOUCHPAD_X_SENSOR,
@@ -290,11 +291,18 @@ async def to_code(config):
         if conf_key not in config:
             continue
         tp = config[conf_key]
-        cg.add(
-            getattr(var, f"set_{prefix}_touch_sensor")(
-                await cg.get_variable(tp[CONF_TOUCHPAD_SENSOR])
+        if CONF_TOUCHPAD_SENSOR in tp:
+            cg.add(
+                getattr(var, f"set_{prefix}_touch_sensor")(
+                    await cg.get_variable(tp[CONF_TOUCHPAD_SENSOR])
+                )
             )
-        )
+        if CONF_TOUCHPAD_TOUCHSCREEN in tp:
+            cg.add(
+                getattr(var, f"set_{prefix}_touchscreen")(
+                    await cg.get_variable(tp[CONF_TOUCHPAD_TOUCHSCREEN])
+                )
+            )
         if CONF_TOUCHPAD_X_SENSOR in tp:
             cg.add(
                 getattr(var, f"set_{prefix}_touch_x_sensor")(

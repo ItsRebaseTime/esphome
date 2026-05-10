@@ -377,40 +377,57 @@ uint16_t Gamepad::scale_touchpad_axis(sensor::Sensor *sensor, float input_min, f
   return scale_touchpad_raw(value, input_min, input_max, output_min, output_max);
 }
 
-void Gamepad::update_touchpad_contact(binary_sensor::BinarySensor *touch_sensor, sensor::Sensor *x_sensor,
-                                      sensor::Sensor *y_sensor, float x_min, float x_max, float y_min, float y_max,
-                                      bool &was_active, int8_t &touch_id, uint16_t x_out_min, uint16_t x_out_max,
-                                      uint8_t touch_field, uint8_t x_field, uint8_t y_field) {
+void Gamepad::update_touchpad_contact(binary_sensor::BinarySensor *touch_sensor, touchscreen::Touchscreen *ts,
+                                      sensor::Sensor *x_sensor, sensor::Sensor *y_sensor, float x_min, float x_max,
+                                      float y_min, float y_max, bool &was_active, int8_t &touch_id, uint16_t x_out_min,
+                                      uint16_t x_out_max, uint8_t touch_field, uint8_t x_field, uint8_t y_field) {
   static constexpr uint16_t TOUCHPAD_Y_MAX = 1079;
 
-  const bool active = (touch_sensor != nullptr) ? touch_sensor->state : companion_binary(touch_field);
-  if (touch_sensor == nullptr && !m_companion_->has_input(touch_field))
-    return;
+  uint16_t x, y;
 
-  if (!active) {
-    if (was_active) {
-      m_dualsense->touchpadStopTouch(touch_id);
-      touch_id = -1;
-      was_active = false;
+  if (ts != nullptr) {
+    auto tp = ts->get_touch();
+    const bool active = tp.has_value();
+    if (!active) {
+      if (was_active) {
+        m_dualsense->touchpadStopTouch(touch_id);
+        touch_id = -1;
+        was_active = false;
+      }
+      return;
     }
-    return;
+    x = scale_touchpad_raw(static_cast<float>(tp->x), x_min, x_max, x_out_min, x_out_max);
+    y = scale_touchpad_raw(static_cast<float>(tp->y), y_min, y_max, 0, TOUCHPAD_Y_MAX);
+  } else {
+    const bool active = (touch_sensor != nullptr) ? touch_sensor->state : companion_binary(touch_field);
+    if (touch_sensor == nullptr && !m_companion_->has_input(touch_field))
+      return;
+
+    if (!active) {
+      if (was_active) {
+        m_dualsense->touchpadStopTouch(touch_id);
+        touch_id = -1;
+        was_active = false;
+      }
+      return;
+    }
+
+    // Resolve X/Y from sensor or companion float
+    auto get_axis = [&](sensor::Sensor *s, uint8_t cf, float in_min, float in_max, uint16_t out_min,
+                        uint16_t out_max) -> uint16_t {
+      float val = NAN;
+      if (s != nullptr)
+        val = s->state;
+      else if (m_companion_ != nullptr && m_companion_->is_ready() && m_companion_->has_input(cf))
+        val = m_companion_->get_float(cf);
+      if (std::isnan(val))
+        return out_min;
+      return scale_touchpad_raw(val, in_min, in_max, out_min, out_max);
+    };
+
+    x = get_axis(x_sensor, x_field, x_min, x_max, x_out_min, x_out_max);
+    y = get_axis(y_sensor, y_field, y_min, y_max, 0, TOUCHPAD_Y_MAX);
   }
-
-  // Resolve X/Y from sensor or companion float
-  auto get_axis = [&](sensor::Sensor *s, uint8_t cf, float in_min, float in_max, uint16_t out_min,
-                      uint16_t out_max) -> uint16_t {
-    float val = NAN;
-    if (s != nullptr)
-      val = s->state;
-    else if (m_companion_ != nullptr && m_companion_->is_ready() && m_companion_->has_input(cf))
-      val = m_companion_->get_float(cf);
-    if (std::isnan(val))
-      return out_min;
-    return scale_touchpad_raw(val, in_min, in_max, out_min, out_max);
-  };
-
-  const uint16_t x = get_axis(x_sensor, x_field, x_min, x_max, x_out_min, x_out_max);
-  const uint16_t y = get_axis(y_sensor, y_field, y_min, y_max, 0, TOUCHPAD_Y_MAX);
 
   if (!was_active) {
     touch_id = m_dualsense->touchpadStartTouch(x, y);
@@ -431,30 +448,32 @@ void Gamepad::update_touchpad() {
 
   handle_button(m_touchpad_button, DUALSENSE_BUTTON_TOUCHPAD, cproto::IN_TOUCHPAD_BTN);
 
-  const bool has_left = m_left_touch_sensor != nullptr || (m_companion_ != nullptr && m_companion_->is_ready() &&
-                                                           m_companion_->has_input(cproto::IN_LEFT_TOUCH));
-  const bool has_right = m_right_touch_sensor != nullptr || (m_companion_ != nullptr && m_companion_->is_ready() &&
-                                                             m_companion_->has_input(cproto::IN_RIGHT_TOUCH));
+  const bool has_left =
+      m_left_touch_sensor != nullptr || m_left_touchscreen_ != nullptr ||
+      (m_companion_ != nullptr && m_companion_->is_ready() && m_companion_->has_input(cproto::IN_LEFT_TOUCH));
+  const bool has_right =
+      m_right_touch_sensor != nullptr || m_right_touchscreen_ != nullptr ||
+      (m_companion_ != nullptr && m_companion_->is_ready() && m_companion_->has_input(cproto::IN_RIGHT_TOUCH));
 
   if (has_left && has_right) {
-    update_touchpad_contact(m_left_touch_sensor, m_left_touch_x_sensor, m_left_touch_y_sensor, m_left_touch_x_min,
-                            m_left_touch_x_max, m_left_touch_y_min, m_left_touch_y_max, m_left_touch_was_active,
-                            m_left_touch_id, 0, TOUCHPAD_X_LEFT_MAX, cproto::IN_LEFT_TOUCH, cproto::IN_LEFT_TOUCH_X,
-                            cproto::IN_LEFT_TOUCH_Y);
-    update_touchpad_contact(m_right_touch_sensor, m_right_touch_x_sensor, m_right_touch_y_sensor, m_right_touch_x_min,
-                            m_right_touch_x_max, m_right_touch_y_min, m_right_touch_y_max, m_right_touch_was_active,
-                            m_right_touch_id, TOUCHPAD_X_RIGHT_MIN, TOUCHPAD_X_MAX, cproto::IN_RIGHT_TOUCH,
-                            cproto::IN_RIGHT_TOUCH_X, cproto::IN_RIGHT_TOUCH_Y);
+    update_touchpad_contact(m_left_touch_sensor, m_left_touchscreen_, m_left_touch_x_sensor, m_left_touch_y_sensor,
+                            m_left_touch_x_min, m_left_touch_x_max, m_left_touch_y_min, m_left_touch_y_max,
+                            m_left_touch_was_active, m_left_touch_id, 0, TOUCHPAD_X_LEFT_MAX, cproto::IN_LEFT_TOUCH,
+                            cproto::IN_LEFT_TOUCH_X, cproto::IN_LEFT_TOUCH_Y);
+    update_touchpad_contact(m_right_touch_sensor, m_right_touchscreen_, m_right_touch_x_sensor, m_right_touch_y_sensor,
+                            m_right_touch_x_min, m_right_touch_x_max, m_right_touch_y_min, m_right_touch_y_max,
+                            m_right_touch_was_active, m_right_touch_id, TOUCHPAD_X_RIGHT_MIN, TOUCHPAD_X_MAX,
+                            cproto::IN_RIGHT_TOUCH, cproto::IN_RIGHT_TOUCH_X, cproto::IN_RIGHT_TOUCH_Y);
   } else if (has_left) {
-    update_touchpad_contact(m_left_touch_sensor, m_left_touch_x_sensor, m_left_touch_y_sensor, m_left_touch_x_min,
-                            m_left_touch_x_max, m_left_touch_y_min, m_left_touch_y_max, m_left_touch_was_active,
-                            m_left_touch_id, 0, TOUCHPAD_X_MAX, cproto::IN_LEFT_TOUCH, cproto::IN_LEFT_TOUCH_X,
-                            cproto::IN_LEFT_TOUCH_Y);
+    update_touchpad_contact(m_left_touch_sensor, m_left_touchscreen_, m_left_touch_x_sensor, m_left_touch_y_sensor,
+                            m_left_touch_x_min, m_left_touch_x_max, m_left_touch_y_min, m_left_touch_y_max,
+                            m_left_touch_was_active, m_left_touch_id, 0, TOUCHPAD_X_MAX, cproto::IN_LEFT_TOUCH,
+                            cproto::IN_LEFT_TOUCH_X, cproto::IN_LEFT_TOUCH_Y);
   } else if (has_right) {
-    update_touchpad_contact(m_right_touch_sensor, m_right_touch_x_sensor, m_right_touch_y_sensor, m_right_touch_x_min,
-                            m_right_touch_x_max, m_right_touch_y_min, m_right_touch_y_max, m_right_touch_was_active,
-                            m_right_touch_id, 0, TOUCHPAD_X_MAX, cproto::IN_RIGHT_TOUCH, cproto::IN_RIGHT_TOUCH_X,
-                            cproto::IN_RIGHT_TOUCH_Y);
+    update_touchpad_contact(m_right_touch_sensor, m_right_touchscreen_, m_right_touch_x_sensor, m_right_touch_y_sensor,
+                            m_right_touch_x_min, m_right_touch_x_max, m_right_touch_y_min, m_right_touch_y_max,
+                            m_right_touch_was_active, m_right_touch_id, 0, TOUCHPAD_X_MAX, cproto::IN_RIGHT_TOUCH,
+                            cproto::IN_RIGHT_TOUCH_X, cproto::IN_RIGHT_TOUCH_Y);
   }
 }
 
