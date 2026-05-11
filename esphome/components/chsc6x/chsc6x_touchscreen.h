@@ -9,14 +9,18 @@
 namespace esphome {
 namespace chsc6x {
 
-static const char *const TAG = "chsc6x.touchscreen";
+// Register 0x02 is the start of the touch data block:
+//   [0]      = number of active touch points (0, 1, or 2)
+//   [1..4]   = point 0: X-high, X-low, Y-high, Y-low (12-bit each, masked with 0x0FFF)
+//   [5..6]   = reserved (weight/size, always 0)
+//   [7..10]  = point 1: X-high, X-low, Y-high, Y-low
+static const uint8_t CHSC6X_REG_POINT_DATA = 0x02;
+static const uint8_t CHSC6X_DATA_LEN = 11;
+static const uint8_t CHSC6X_MAX_POINTS = 2;
 
-static const uint8_t CHSC6X_REG_STATUS = 0x00;
-static const uint8_t CHSC6X_REG_STATUS_TOUCH = 0x00;
-static const uint8_t CHSC6X_REG_STATUS_X_COR = 0x02;
-static const uint8_t CHSC6X_REG_STATUS_Y_COR = 0x04;
-static const uint8_t CHSC6X_REG_STATUS_LEN = 0x05;
-static const uint8_t CHSC6X_CHIP_ID = 0x2e;
+// Writing 0x5A to register 0x5A enables hardware interrupt mode.
+static const uint8_t CHSC6X_REG_INT_MODE = 0x5A;
+static const uint8_t CHSC6X_INT_MODE_ENABLE = 0x5A;
 
 class CHSC6XTouchscreen : public touchscreen::Touchscreen, public i2c::I2CDevice {
  public:
