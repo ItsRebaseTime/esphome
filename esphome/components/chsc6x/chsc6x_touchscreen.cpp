@@ -5,12 +5,15 @@ namespace chsc6x {
 
 static const char *const TAG = "chsc6x.touchscreen";
 
-void CHSC6XTouchscreen::setup() {
+bool CHSC6XTouchscreen::initialize_() {
+  if (this->write(nullptr, 0) != i2c::ERROR_OK) {
+    return false;
+  }
+
   if (this->interrupt_pin_ != nullptr) {
     this->interrupt_pin_->setup();
     this->attach_interrupt_(this->interrupt_pin_, gpio::INTERRUPT_FALLING_EDGE);
   }
-  // Enable hardware interrupt mode on the touch controller.
   this->write_byte(CHSC6X_REG_INT_MODE, CHSC6X_INT_MODE_ENABLE);
 
   if (this->x_raw_max_ == this->x_raw_min_) {
@@ -19,9 +22,25 @@ void CHSC6XTouchscreen::setup() {
   if (this->y_raw_max_ == this->y_raw_min_) {
     this->y_raw_max_ = this->display_->get_native_height();
   }
+
+  this->initialized_ = true;
+  return true;
+}
+
+void CHSC6XTouchscreen::setup() {
+  if (!this->initialize_()) {
+    ESP_LOGW(TAG, "CHSC6X not found on I2C bus (address 0x%02X), will retry", this->address_);
+  }
 }
 
 void CHSC6XTouchscreen::update_touches() {
+  if (!this->initialized_) {
+    if (!this->initialize_()) {
+      return;
+    }
+    ESP_LOGI(TAG, "CHSC6X initialized");
+  }
+
   uint8_t data[CHSC6X_DATA_LEN];
   if (!this->read_bytes(CHSC6X_REG_POINT_DATA, data, sizeof(data))) {
     ESP_LOGW(TAG, "Failed to read touch data");

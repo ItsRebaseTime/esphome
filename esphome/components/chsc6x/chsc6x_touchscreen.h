@@ -31,7 +31,10 @@ class CHSC6XTouchscreen : public touchscreen::Touchscreen, public i2c::I2CDevice
   void set_interrupt_pin(InternalGPIOPin *pin) { this->interrupt_pin_ = pin; }
 
  protected:
+  bool initialize_();
+
   InternalGPIOPin *interrupt_pin_{};
+  bool initialized_{false};
 };
 
 }  // namespace chsc6x
