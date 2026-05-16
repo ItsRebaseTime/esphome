@@ -87,7 +87,7 @@ from .const import (
 
 CODEOWNERS: Final = ["@ItsRebaseTime"]
 AUTO_LOAD: Final = ["binary_sensor", "sensor", "number", "button", "light", "switch"]
-DEPENDENCIES: Final = ["uart"]
+DEPENDENCIES: Final = []
 
 gamepad_ns = cg.esphome_ns.namespace(DOMAIN)
 
