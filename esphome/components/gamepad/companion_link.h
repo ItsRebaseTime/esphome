@@ -1,6 +1,8 @@
 #pragma once
 
+#ifdef GAMEPAD_USE_COMPANION_UART
 #include "esphome/components/uart/uart.h"
+#endif
 #include <cstdint>
 
 namespace esphome {
@@ -100,6 +102,7 @@ static constexpr uint8_t OUTPUT_MASK_BYTES = 5;  // ceil(33/8) = 5 bytes
 
 // Manages UART communication with a gamepad_companion device.
 // Call setup() once, then process() every loop iteration.
+#ifdef GAMEPAD_USE_COMPANION_UART
 class GamepadCompanionLink {
  public:
   explicit GamepadCompanionLink(uart::UARTComponent *uart) : uart_(uart) {}
@@ -169,6 +172,23 @@ class GamepadCompanionLink {
 
   static uint8_t crc8_update(uint8_t crc, uint8_t byte);
 };
+#else
+// Stub used when companion_uart is not configured — never instantiated (m_companion_ stays nullptr).
+class GamepadCompanionLink {
+ public:
+  void setup() {}
+  void process() {}
+  bool is_ready() const { return false; }
+  bool has_input(uint8_t) const { return false; }
+  bool get_binary(uint8_t) const { return false; }
+  float get_float(uint8_t) const { return 0.0f; }
+  uint8_t get_battery() const { return 100; }
+  // clang-format off
+  void send_output(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t,
+                   uint8_t, uint8_t, const uint8_t *, const uint8_t *) {}
+  // clang-format on
+};
+#endif
 
 }  // namespace gamepad
 }  // namespace esphome

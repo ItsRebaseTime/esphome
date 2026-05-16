@@ -8,7 +8,6 @@
 #ifdef GAMEPAD_USE_TOUCHSCREEN
 #include "esphome/components/touchscreen/touchscreen.h"
 #endif
-#include "esphome/components/uart/uart.h"
 #include "companion_link.h"
 #include <BleCompositeHID.h>
 #include <memory>
@@ -149,7 +148,9 @@ class Gamepad : public PollingComponent {
   void set_trigger_max(int16_t max) { m_trigger_max = max; }
   void set_timing_info(bool enable) { m_timing_info = enable; }
   void set_timing_info_switch(switch_::Switch *sw) { this->m_timing_info_switch = sw; }
+#ifdef GAMEPAD_USE_COMPANION_UART
   void set_companion_uart(uart::UARTComponent *uart) { this->m_companion_ = new GamepadCompanionLink(uart); }
+#endif
   void handle_feedback(DualsenseGamepadOutputReportData data);
   void start();
   void stop();

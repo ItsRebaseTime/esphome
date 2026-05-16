@@ -413,6 +413,7 @@ async def to_code(config: dict) -> None:
         )
 
     if CONF_COMPANION_UART in config:
+        cg.add_define("GAMEPAD_USE_COMPANION_UART")
         uart_var = await cg.get_variable(config[CONF_COMPANION_UART])
         cg.add(var.set_companion_uart(uart_var))
 
