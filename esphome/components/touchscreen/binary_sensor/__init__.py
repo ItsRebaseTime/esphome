@@ -22,8 +22,17 @@ CONF_Y_MAX = "y_max"
 CONF_USE_RAW = "use_raw"
 
 
+COORD_KEYS = (CONF_X_MIN, CONF_X_MAX, CONF_Y_MIN, CONF_Y_MAX)
+
+
 def _validate_coords(config):
-    if (
+    has_any = any(k in config for k in COORD_KEYS)
+    has_all = all(k in config for k in COORD_KEYS)
+    if has_any and not has_all:
+        raise cv.Invalid(
+            f"Either all of {', '.join(COORD_KEYS)} must be specified, or none (for whole-screen detection)"
+        )
+    if has_all and (
         config[CONF_X_MAX] < config[CONF_X_MIN]
         or config[CONF_Y_MAX] < config[CONF_Y_MIN]
     ):
@@ -48,10 +57,10 @@ CONFIG_SCHEMA = cv.All(
         {
             cv.GenerateID(CONF_TOUCHSCREEN_ID): cv.use_id(Touchscreen),
             cv.Optional(CONF_USE_RAW, default=False): cv.boolean,
-            cv.Required(CONF_X_MIN): cv.int_range(min=0, max=2000),
-            cv.Required(CONF_X_MAX): cv.int_range(min=0, max=2000),
-            cv.Required(CONF_Y_MIN): cv.int_range(min=0, max=2000),
-            cv.Required(CONF_Y_MAX): cv.int_range(min=0, max=2000),
+            cv.Optional(CONF_X_MIN): cv.int_range(min=0, max=2000),
+            cv.Optional(CONF_X_MAX): cv.int_range(min=0, max=2000),
+            cv.Optional(CONF_Y_MIN): cv.int_range(min=0, max=2000),
+            cv.Optional(CONF_Y_MAX): cv.int_range(min=0, max=2000),
             cv.Exclusive(CONF_PAGE_ID, group_of_exclusion=CONF_PAGES): cv.use_id(
                 display.DisplayPage
             ),
@@ -72,14 +81,15 @@ async def to_code(config):
     await cg.register_parented(var, config[CONF_TOUCHSCREEN_ID])
 
     cg.add(var.set_use_raw(config[CONF_USE_RAW]))
-    cg.add(
-        var.set_area(
-            config[CONF_X_MIN],
-            config[CONF_X_MAX],
-            config[CONF_Y_MIN],
-            config[CONF_Y_MAX],
+    if CONF_X_MIN in config:
+        cg.add(
+            var.set_area(
+                config[CONF_X_MIN],
+                config[CONF_X_MAX],
+                config[CONF_Y_MIN],
+                config[CONF_Y_MAX],
+            )
         )
-    )
 
     for page_id in config.get(CONF_PAGES, []):
         page = await cg.get_variable(page_id)

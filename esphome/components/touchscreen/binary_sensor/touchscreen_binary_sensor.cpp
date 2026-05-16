@@ -10,7 +10,9 @@ void TouchscreenBinarySensor::setup() {
 
 void TouchscreenBinarySensor::touch(TouchPoint tp) {
   bool touched;
-  if (this->use_raw_) {
+  if (this->whole_screen_) {
+    touched = true;
+  } else if (this->use_raw_) {
     touched =
         (tp.x_raw >= this->x_min_ && tp.x_raw <= this->x_max_ && tp.y_raw >= this->y_min_ && tp.y_raw <= this->y_max_);
   } else {
