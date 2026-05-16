@@ -1,4 +1,7 @@
 #include "companion_link.h"
+
+#ifdef GAMEPAD_USE_COMPANION_UART
+
 #include "esphome/core/log.h"
 #include <cinttypes>
 #include <cstring>
@@ -275,3 +278,5 @@ void GamepadCompanionLink::send_output(uint8_t rumble_weak, uint8_t rumble_stron
 
 }  // namespace gamepad
 }  // namespace esphome
+
+#endif  // GAMEPAD_USE_COMPANION_UART
