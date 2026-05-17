@@ -1,0 +1,4 @@
+media_source:
+  - platform: audio_sd_card
+    id: sd_audio_source
+    mount_point: "/sdcard"
